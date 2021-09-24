@@ -226,20 +226,20 @@ class Pagecontroller extends Controller
         for ($i = 0; $i < $limits[$level]; $i++) {
             $id = ($this->is_odd($i) ? 'mo' : 'fa') . 'ther_id';
             $key = ($this->is_odd($id) ? ($i - 1) / 2 : $i / 2);
-            $pedigrees[$level][$i]['self'] = $pedigrees[$level - 1][$key][$id];
-            if ($pedigrees[$level][$i]['self'] > 0) {
-print_r($pedigrees);
-                $query = DB::table('pd_entries')
-                            ->where('reg1',$pedigrees[$level][$i]['self'])
-                            ->limit('1');
+            if(!empty($pedigrees[$level - 1][$key][$id])) {
+                $pedigrees[$level][$i]['self'] = $pedigrees[$level - 1][$key][$id];
+                if ($pedigrees[$level][$i]['self'] > 0) {
+                    $query = DB::table('pd_entries')
+                                ->where('reg1',$pedigrees[$level][$i]['self'])
+                                ->limit('1');
 
-                    $result = $query->first();
-                    print_r($result); die;
-                    $pedigrees[$level][$i]['father_id'] = $result['father_id'];
-                    $pedigrees[$level][$i]['mother_id'] = $result['mother_id'];
-            } else {
-                $pedigrees[$level][$i]['father_id'] = 0;
-                $pedigrees[$level][$i]['mother_id'] = 0;
+                        $result = $query->first();
+                        $pedigrees[$level][$i]['father_id'] = $result['father_id'];
+                        $pedigrees[$level][$i]['mother_id'] = $result['mother_id'];
+                } else {
+                    $pedigrees[$level][$i]['father_id'] = 0;
+                    $pedigrees[$level][$i]['mother_id'] = 0;
+                }
             }
         
         }
@@ -511,9 +511,12 @@ print_r($pedigrees);
 
             $dogs = array();
             $this->getData($pedigrees);
-            $sr = $dogs[$sire];
-            $dm = $dogs[$dam];
-            
+            if(!empty($dogs[$sire])) {
+                $sr = $dogs[$sire];
+            }
+            if(!empty($dogs[$dam])) {
+                $dm = $dogs[$dam];
+            }
             $keys = array(
                 'reg1' => 0,
                 'cc' => 'cc',
@@ -537,37 +540,42 @@ print_r($pedigrees);
                     if($number <= $sire_range){
                         $line_sire[$dog['self']][] = $level;
                     }else{
-                        $line_dam[$dog['self']][] = $level;
+                        if(!empty($dog['self'])) {
+                            $line_dam[$dog['self']][] = $level;
+                        }
+                    }
+                }
+            }
+            $line[] = array();
+            if(!empty($line_sire)) {
+                foreach($line_sire as $dog => $level){
+                    if(empty($dog)) continue;
+                    $sire_breeding = $dam_breeding = '';
+                    if(array_key_exists($dog, $line_dam)){  
+                        foreach($level as $num) $sire_breeding .= ($sire_breeding == '' ? $num : ",$num");
+                        foreach($line_dam[$dog] as $num) $dam_breeding .= ($dam_breeding == '' ? $num : ",$num");
+                        $breeding = $sire_breeding.'-'.$dam_breeding;
+                        foreach($dogs as $possibility){
+                            if($possibility['reg1'] == $dog){
+                                $line_name = $possibility['name'].' '.$possibility['lastname'];
+                                $line_url = $possibility['url'];
+                                $line_rank = pd_rank($dog);
+                                $line_c1 = $possibility['c1'];
+                                break;
+                            }
+                        }
+                        $line[] = array('regcode' => $dog,'c1' => $line_c1, 'name' => $line_name, 'url' => $line_url, 'rank' => $line_rank, 'breeding' => $breeding);
                     }
                 }
             }
 
-            foreach($line_sire as $dog => $level){
-                if(empty($dog)) continue;
-                $sire_breeding = $dam_breeding = '';
-                if(array_key_exists($dog, $line_dam)){  
-                    foreach($level as $num) $sire_breeding .= ($sire_breeding == '' ? $num : ",$num");
-                    foreach($line_dam[$dog] as $num) $dam_breeding .= ($dam_breeding == '' ? $num : ",$num");
-                    $breeding = $sire_breeding.'-'.$dam_breeding;
-                    foreach($dogs as $possibility){
-                        if($possibility['reg1'] == $dog){
-                            $line_name = $possibility['name'].' '.$possibility['lastname'];
-                            $line_url = $possibility['url'];
-                            $line_rank = pd_rank($dog);
-                            $line_c1 = $possibility['c1'];
-                            break;
-                        }
-                    }
-                    $line[] = array('regcode' => $dog,'c1' => $line_c1, 'name' => $line_name, 'url' => $line_url, 'rank' => $line_rank, 'breeding' => $breeding);
-                }
-            }
-            
-            if(count($line) < 1) 
+            if(count($line) < 1) { 
                 $line_breeding = '<p>&nbsp;No line breeding results to display.<br /><br /></p>';
-            else{
+            } else{
                 
                 foreach($line as $lb){
-                    $line_breeding .= '<span>'.$lb['rank'].' <a href="pdgdetail.php?pdgid='.$lb['regcode'].'&pdgcat='.$lb['c1'].'">'.utf8_encode($lb['name']).'</a> ... '.$lb['breeding'].'</span><br>';
+                    //$line_breeding .= '<span>'.$lb['rank'].' <a href="pdgdetail/'.$lb['regcode'].'&pdgcat='.$lb['c1'].'">'.utf8_encode($lb['name']).'</a> ... '.$lb['breeding'].'</span><br>';
+                    $line_breeding ='';
                 }
                 
             }
@@ -580,57 +588,60 @@ print_r($pedigrees);
         for($i = 1; $i < 5; $i++){
             $d = 1;
              $pedigree .= '<div class="pd_mating_1">';
-            foreach($pedigrees[$i + 1] as $dog){
-                $padding = ($i < 2 ? 30 : ($i < 3 ? 45 : ($i < 4 ? 15 : 0)));
-                $height = ($i < 2 ? 210 : ($i < 3 ? 75 : ($i < 4 ? 45 : 30)));;
-                $background = ($d % 2 ? 'transparent' : '#444');
-                $cell_dam = ($d % 2 ? '' : ' cell_dam');
-                
-                
-                $pedigree .= '<div class="pd_mating_cell cell_'.$i.$cell_dam.'">';
-                if(count($dogs[$dog['self']]) > 2){
-                    $dog = $dogs[$dog['self']];
+             echo $pedigrees[$i + 1];
+             if(count($pedigrees[$i])>0) {
+                foreach($pedigrees[$i + 1] as $dog){
+                    $padding = ($i < 2 ? 30 : ($i < 3 ? 45 : ($i < 4 ? 15 : 0)));
+                    $height = ($i < 2 ? 210 : ($i < 3 ? 75 : ($i < 4 ? 45 : 30)));;
+                    $background = ($d % 2 ? 'transparent' : '#444');
+                    $cell_dam = ($d % 2 ? '' : ' cell_dam');
                     
-                    if ( false === mb_check_encoding($dog['lastname'], 'UTF-8') ) {
-                        $dogLastName = utf8_encode($dog['lastname']);    
-                    } else {
-                        $dogLastName = $dog['lastname'];
-                    }
-                    if($i == 1){
+                    
+                    $pedigree .= '<div class="pd_mating_cell cell_'.$i.$cell_dam.'">';
+                    if(count($dogs[$dog['self']]) > 2){
+                        $dog = $dogs[$dog['self']];
                         
+                        if ( false === mb_check_encoding($dog['lastname'], 'UTF-8') ) {
+                            $dogLastName = utf8_encode($dog['lastname']);    
+                        } else {
+                            $dogLastName = $dog['lastname'];
+                        }
+                        if($i == 1){
+                            
+                            if(!empty($dog['picture'])){
+                                $pedigree .= '<a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">';
+                                $pedigree .= '<img src="'.$dog['picture'].'" style="width: 50%;" />';
+                                $pedigree .= '</a>';
+                            }else $pedigree .= $dog['picture'];
+                            $pedigree .= '<h6>'.$dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.'</a></h6>';
+                            $pedigree .= '<h6><a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">'.$dog['cc'].': '.$dog['reg1'].'</a></h6>';
+                            $kzkork = $dog['kz'].(empty($dog['kz']) || empty($dog['kork']) ? '' : '/').$dog['kork'];
+                            $kzkork = str_replace('//', '/', trim($kzkork, '/'));
+                            $pedigree .= '<h6>'.$kzkork.'</h6>';
+                            
+                        }
+                        else if($i == 2){
                         if(!empty($dog['picture'])){
-                            $pedigree .= '<a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">';
-                            $pedigree .= '<img src="'.$dog['picture'].'" style="width: 50%;" />';
-                            $pedigree .= '</a>';
-                        }else $pedigree .= $dog['picture'];
-                        $pedigree .= '<h6>'.$dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.'</a></h6>';
-                        $pedigree .= '<h6><a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">'.$dog['cc'].': '.$dog['reg1'].'</a></h6>';
-                        $kzkork = $dog['kz'].(empty($dog['kz']) || empty($dog['kork']) ? '' : '/').$dog['kork'];
-                        $kzkork = str_replace('//', '/', trim($kzkork, '/'));
-                        $pedigree .= '<h6>'.$kzkork.'</h6>';
-                        
-                    }
-                    else if($i == 2){
-                    if(!empty($dog['picture'])){
-                            $pedigree .= '<a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">';
-                            $pedigree .= '<img src="'.$dog['picture'].'" style="width: 50%;" />';
-                            $pedigree .= '</a>';
-                        }else $pedigree .= $dog['picture'];
-                        
-                        $pedigree .= '<h6>'.$dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.'</a></h6>';
-                        $pedigree .= '<h6><a href="/'.$dog['reg1'].'/'.$dog['cc'].'">'.$dog['cc'].': '.$dog['reg1'].'</a></h6>';
-                        $kzkork = $dog['kz'].(empty($dog['kz']) || empty($dog['kork']) ? '' : '/').$dog['kork'];
-                        $kzkork = str_replace('//', '/', trim($kzkork, '/'));
-                        $pedigree .= '<h6>'.$kzkork.'</h6>';
+                                $pedigree .= '<a href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'">';
+                                $pedigree .= '<img src="'.$dog['picture'].'" style="width: 50%;" />';
+                                $pedigree .= '</a>';
+                            }else $pedigree .= $dog['picture'];
+                            
+                            $pedigree .= '<h6>'.$dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.'</a></h6>';
+                            $pedigree .= '<h6><a href="/'.$dog['reg1'].'/'.$dog['cc'].'">'.$dog['cc'].': '.$dog['reg1'].'</a></h6>';
+                            $kzkork = $dog['kz'].(empty($dog['kz']) || empty($dog['kork']) ? '' : '/').$dog['kork'];
+                            $kzkork = str_replace('//', '/', trim($kzkork, '/'));
+                            $pedigree .= '<h6>'.$kzkork.'</h6>';
+                        }else{
+                            $pedigree .= $dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.' <br />';
+                            $pedigree .= '<a class="pd_mating_name" href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'" target="_blank"> '.$dog['cc'].': '.$dog['reg1'].'</a>';
+                        }
                     }else{
-                        $pedigree .= $dog['rank'].' '.utf8_encode($dog['name']).' '.$dogLastName.' <br />';
-                        $pedigree .= '<a class="pd_mating_name" href="pdgdetail/'.$dog['reg1'].'/'.$dog['cc'].'" target="_blank"> '.$dog['cc'].': '.$dog['reg1'].'</a>';
+                        $pedigree .= ($i == 1 ? '<br /><br /><br />' : '').'<i style="color:#999;line-height:28px">No data available.</i>';
                     }
-                }else{
-                    $pedigree .= ($i == 1 ? '<br /><br /><br />' : '').'<i style="color:#999;line-height:28px">No data available.</i>';
+                    $d++;
+                    $pedigree .= '</div>';
                 }
-                $d++;
-                $pedigree .= '</div>';
             }
             $pedigree .= '</div>';
         }
