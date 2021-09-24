@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="">
+		<meta name="author" content="Ferdi Sonmezay">
+		<meta name="website" content="http://www.ferdisonmezay.com">
+		<meta name="github" content="http://github.com/pherdee">
+		
+		<title>Summernote - File Upload</title>
+		
+		<link href="./css/bootstrap.css" rel="stylesheet">
+		<link href="./css/font-awesome.css" rel="stylesheet">
+	  	<link href="./css/summernote.css" rel="stylesheet">
+
+	</head>
+
+<body>
+	
+<div class="summernote"></div>
+
+
+<script src="./js/jquery.js"></script>
+<script src="./js/bootstrap.min.js"></script>
+<script src="./js/summernote.js"></script>
+
+<script type="text/javascript">						    
+
+$(document).ready(function() {
+
+$('.summernote').summernote({
+height: 200
+});
+
+
+$('#submitBtn').click(function() {
+var summernoteContent = $('.summernote').summernote('code');
+$('#result').val(summernoteContent);
+});
+
+});
+
+</script>
+
+</body></html>
+
